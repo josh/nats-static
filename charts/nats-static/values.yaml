@@ -1,0 +1,120 @@
+image:
+  repository: ghcr.io/josh/nats-static
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Replica count; 2+ for HA (independent of nack.objectStore.replicas below).
+replicaCount: 2
+
+# Application config, rendered to config.json. Auth file paths are injected from
+# the `secrets` block below — don't set them here.
+config:
+  nats:
+    url: "nats://nats:4222"
+  object_store:
+    bucket: "static" # bucket to serve; provisioned externally, the server only opens it
+  http:
+    listen: ":8080"
+  multipart:
+    idle_timeout: "30s" # abort a chunked-upload session stalled this long
+    max_sessions: 64 # cap on concurrent uploads per replica (bounds memory)
+
+nack:
+  # Render NACK CRDs to provision the object store (needs the NACK controller).
+  # Off by default; otherwise create the bucket yourself — the server never does.
+  enabled: false
+  objectStore:
+    storage: file
+    replicas: 3 # data copies across NATS nodes (not replicaCount); <= node count
+  # Optionally render a NACK Account CRD so the ObjectStore targets a non-default
+  # account (connection config only; doesn't create the account server-side).
+  account:
+    name: "" # Account name; "" disables rendering.
+    servers: [] # defaults to [ config.nats.url ]
+
+# Kubernetes Secrets this chart references (you create them). Each auth method
+# nests `secret: {name}` + key(s); secret.name defaults to "<fullname>-secrets".
+secrets:
+  # App NATS auth: populate exactly one method (else anonymous). Keys are mounted
+  # to files and the matching nats.*_file path is injected into config.json.
+  nats:
+    token: # -> nats.token_file
+      secret:
+        name: ""
+      token: "" # key holding the token
+    user: # -> nats.user_file + nats.password_file
+      secret:
+        name: ""
+      user: "" # key holding the username
+      password: "" # key holding the password
+    creds: # -> nats.creds_file
+      secret:
+        name: ""
+      file: "" # key holding the nsc creds file
+    nkey: # -> nats.nkey_seed_file
+      secret:
+        name: ""
+      seed: "" # key holding the nkey seed
+
+  # Auth for the NACK Account CRD (used when nack.account.name is set). Empty =
+  # reuse secrets.nats; populate one method to override.
+  nack:
+    token:
+      secret:
+        name: ""
+      token: ""
+    user:
+      secret:
+        name: ""
+      user: ""
+      password: ""
+    creds:
+      secret:
+        name: ""
+      file: ""
+    nkey:
+      secret:
+        name: ""
+      seed: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+# No Ingress is rendered by this chart — it stays ingress-agnostic. Point your
+# own Ingress at the Service's `http` port.
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

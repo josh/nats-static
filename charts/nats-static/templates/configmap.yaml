@@ -1,0 +1,10 @@
+{{- include "nats-static.validate" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nats-static.fullname" . }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {{- include "nats-static.configJson" . | nindent 4 }}

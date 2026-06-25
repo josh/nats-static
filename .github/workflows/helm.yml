@@ -1,0 +1,55 @@
+name: Helm
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install Helm
+        run: |
+          curl --fail --silent --show-error --location --output get-helm.sh https://raw.githubusercontent.com/helm/helm/5ae85868d45ca7bb9ac3ef7a10e0db54b8a8695c/scripts/get-helm-4
+          bash get-helm.sh --version "v${HELM_VERSION}"
+        env:
+          HELM_VERSION: "4.1.0"
+
+      - name: Lint chart
+        run: |
+          helm lint ./charts/nats-static
+
+      - name: Template chart
+        run: |
+          helm template test ./charts/nats-static
+
+      - name: Template chart with NATS auth
+        run: |
+          helm template test ./charts/nats-static \
+            --set secrets.nats.user.user=user \
+            --set secrets.nats.user.password=password
+
+      - name: Template chart with NACK object store
+        run: |
+          helm template test ./charts/nats-static \
+            --set nack.enabled=true
+
+      - name: Template chart with NACK account reusing NATS auth
+        run: |
+          helm template test ./charts/nats-static \
+            --set secrets.nats.user.user=user \
+            --set secrets.nats.user.password=password \
+            --set nack.enabled=true \
+            --set nack.account.name=static
+
+      - name: Template chart with NACK account using separate auth
+        run: |
+          helm template test ./charts/nats-static \
+            --set secrets.nats.user.user=user \
+            --set secrets.nats.user.password=password \
+            --set nack.enabled=true \
+            --set nack.account.name=static \
+            --set secrets.nack.token.secret.name=nack \
+            --set secrets.nack.token.token=token

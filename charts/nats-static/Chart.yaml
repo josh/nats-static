@@ -1,0 +1,18 @@
+apiVersion: v2
+name: nats-static
+description: Serve static files from a NATS JetStream object store
+type: application
+version: "0.0.0"
+appVersion: "0.0.0"
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/josh/nats-static
+sources:
+  - https://github.com/josh/nats-static
+keywords:
+  - nats
+  - jetstream
+  - object-store
+  - static
+  - http
+maintainers:
+  - name: Joshua Peek

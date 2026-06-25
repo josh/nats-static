@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nats-static.fullname" . }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nats-static.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include "nats-static.configJson" . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "nats-static.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "nats-static.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: nats-static
+          image: {{ include "nats-static.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: NATS_STATIC_CONFIG
+              value: /etc/nats-static/config.json
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats-static/config.json
+              subPath: config.json
+              readOnly: true
+            {{- if include "nats-static.hasSecrets" . }}
+            - name: secrets
+              mountPath: /etc/nats-static/secrets
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "nats-static.fullname" . }}
+        {{- if include "nats-static.hasSecrets" . }}
+        - name: secrets
+          projected:
+            defaultMode: 288
+            sources:
+              {{- $method := include "nats-static.natsMethod" . | trim }}
+              {{- $name := include "nats-static.natsSecretName" . }}
+              {{- $nats := .Values.secrets.nats }}
+              {{- if eq $method "token" }}
+              - secret:
+                  name: {{ $name | quote }}
+                  items:
+                    - key: {{ $nats.token.token }}
+                      path: nats.token
+              {{- else if eq $method "user" }}
+              - secret:
+                  name: {{ $name | quote }}
+                  items:
+                    - key: {{ $nats.user.user }}
+                      path: nats.user
+                    - key: {{ $nats.user.password }}
+                      path: nats.password
+              {{- else if eq $method "creds" }}
+              - secret:
+                  name: {{ $name | quote }}
+                  items:
+                    - key: {{ $nats.creds.file }}
+                      path: nats.creds
+              {{- else if eq $method "nkey" }}
+              - secret:
+                  name: {{ $name | quote }}
+                  items:
+                    - key: {{ $nats.nkey.seed }}
+                      path: nats.nk
+              {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

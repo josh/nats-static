@@ -1,0 +1,17 @@
+{{- if and .Values.nack.enabled .Values.nack.account.name }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: Account
+metadata:
+  name: {{ .Values.nack.account.name }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+spec:
+  name: {{ .Values.nack.account.name | quote }}
+  servers:
+    {{- with .Values.nack.account.servers }}
+    {{- toYaml . | nindent 4 }}
+    {{- else }}
+    - {{ .Values.config.nats.url | quote }}
+    {{- end }}
+  {{- include "nats-static.accountUser" . | nindent 2 }}
+{{- end }}

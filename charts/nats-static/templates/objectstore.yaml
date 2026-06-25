@@ -1,0 +1,15 @@
+{{- if .Values.nack.enabled -}}
+apiVersion: jetstream.nats.io/v1beta2
+kind: ObjectStore
+metadata:
+  name: {{ include "nats-static.fullname" . }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.nack.account.name }}
+  account: {{ . | quote }}
+  {{- end }}
+  bucket: {{ .Values.config.object_store.bucket | quote }}
+  storage: {{ .Values.nack.objectStore.storage }}
+  replicas: {{ .Values.nack.objectStore.replicas | int }}
+{{- end }}
