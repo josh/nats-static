@@ -2,8 +2,8 @@ apiVersion: v2
 name: nats-static
 description: Serve static files from a NATS JetStream object store
 type: application
-version: "0.0.1"
-appVersion: "0.0.1"
+version: "0.0.2"
+appVersion: "0.0.2"
 kubeVersion: ">=1.25.0-0"
 home: https://github.com/josh/nats-static
 sources:

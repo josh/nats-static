@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const version = "0.0.1"
+const version = "0.0.2"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
