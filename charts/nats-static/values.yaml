@@ -86,6 +86,37 @@ service:
 # No Ingress is rendered by this chart — it stays ingress-agnostic. Point your
 # own Ingress at the Service's `http` port.
 
+# Pod NetworkPolicies, split by direction so each can be enabled independently.
+# Both are off by default, so upgrading an existing release changes nothing.
+#
+# Enabling a direction makes it an allowlist — there is no permit-everything
+# mode, because a policy that allows every peer still punches through a
+# namespace-wide default deny for these pods. The chart fails rendering if an
+# enabled direction has no peers, rather than deploying a server nothing can
+# reach or one that cannot reach NATS.
+networkPolicy:
+  ingress:
+    # Creates an ingress policy for the server pods.
+    enabled: false
+    # NetworkPolicyPeer entries allowed to reach the http port, typically a
+    # selector for your ingress controller. Required when enabled.
+    from: []
+  egress:
+    # Creates an egress policy for the server pods. DNS is always included:
+    # the server cannot resolve config.nats.url without it.
+    enabled: false
+    # NetworkPolicyPeer entries limiting where DNS may be sent. Empty leaves the
+    # rule destination-agnostic, so it works with CoreDNS, kube-dns, and
+    # node-local DNS without assuming cluster-specific labels or addresses.
+    dnsTo: []
+    # Egress to config.nats.url. NetworkPolicy is L3/L4-only and cannot resolve
+    # a URL, so name the peers yourself; port must match the one in the URL.
+    nats:
+      to: []
+      port: 4222
+    # Complete NetworkPolicyEgressRule entries for any other destination.
+    extraRules: []
+
 serviceAccount:
   create: true
   name: ""

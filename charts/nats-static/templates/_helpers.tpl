@@ -222,6 +222,12 @@ configmap.yaml so any render path triggers it.
 {{- if and (gt $nackCount 0) (not .Values.nack.account.name) -}}
 {{- fail "secrets.nack is populated but nack.account.name is empty; set nack.account.name or clear secrets.nack" -}}
 {{- end -}}
+{{- if and .Values.networkPolicy.ingress.enabled (not .Values.networkPolicy.ingress.from) -}}
+{{- fail "networkPolicy.ingress.enabled needs at least one peer in networkPolicy.ingress.from, or nothing can reach the server" -}}
+{{- end -}}
+{{- if and .Values.networkPolicy.egress.enabled (not (or .Values.networkPolicy.egress.nats.to .Values.networkPolicy.egress.extraRules)) -}}
+{{- fail "networkPolicy.egress.enabled needs peers reaching config.nats.url; set networkPolicy.egress.nats.to" -}}
+{{- end -}}
 {{- end -}}
 
 {{/*

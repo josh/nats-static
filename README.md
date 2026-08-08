@@ -53,6 +53,58 @@ ConfigMap, and (optionally, via `nack.enabled`) the NACK `ObjectStore` and `Acco
 **not** render an Ingress — point your own Ingress at the Service's `http` port. See
 [`values.yaml`](charts/nats-static/values.yaml) for the auth/secret and NACK options.
 
+### NetworkPolicies
+
+The server's network surface is small and fixed: it accepts HTTP on the `http` port (TCP/8080) and
+dials only the NATS server in `config.nats.url`, plus DNS to resolve it. There is no other outbound
+traffic — no object store fetches over HTTP, no metrics push, no Kubernetes API access.
+
+`networkPolicy.ingress.enabled` and `networkPolicy.egress.enabled` render one policy each. Both are
+`false` by default, so upgrading an existing release changes nothing. Enabling a direction makes it
+an allowlist; there is no permit-everything mode, because a policy allowing every peer still opens
+these pods through a namespace-wide default deny. The chart fails rendering when an enabled
+direction has no peers, rather than deploying a server nothing can reach or one that cannot reach
+NATS.
+
+```yaml
+networkPolicy:
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ingress-nginx
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: ingress-nginx
+  egress:
+    enabled: true
+    nats:
+      to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: nats
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: nats
+      port: 4222
+```
+
+`namespaceSelector` and `podSelector` in the same peer are ANDed. Keep `nats.port` matching the port
+in `config.nats.url` — NetworkPolicy is L3/L4-only and cannot resolve the URL, so a stale value
+fails closed with no other symptom.
+
+DNS is always included in the egress policy and is destination-agnostic by default, so it works with
+CoreDNS, kube-dns, and node-local DNS alike. Set `networkPolicy.egress.dnsTo` to pin it to known
+resolvers; pods dial the resolver's Service address rather than a pod IP, so those peers must match
+whatever the CNI evaluates after DNAT — normally the resolver pods.
+
+Two things are worth confirming against your CNI. Traffic arriving through a `LoadBalancer` or
+`NodePort` Service can carry CNI-specific source identities, so the peer that matches may not be the
+one you expect. And if any destination is reached through an in-cluster egress proxy, the port
+NetworkPolicy sees is the proxy Service's `targetPort`, not the port in the URL — select the proxy
+pods and omit `ports` in that case.
+
 ## Container image
 
 Prebuilt images are published to `ghcr.io/josh/nats-static`.

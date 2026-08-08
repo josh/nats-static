@@ -1,0 +1,61 @@
+{{- include "nats-static.validate" . -}}
+{{- if .Values.networkPolicy.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ printf "%s-ingress" (include "nats-static.fullname" .) }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "nats-static.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- toYaml .Values.networkPolicy.ingress.from | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: http
+{{- end }}
+{{- if and .Values.networkPolicy.ingress.enabled .Values.networkPolicy.egress.enabled }}
+---
+{{- end }}
+{{- if .Values.networkPolicy.egress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ printf "%s-egress" (include "nats-static.fullname" .) }}
+  labels:
+    {{- include "nats-static.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "nats-static.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # Always present: the server cannot resolve config.nats.url without it.
+    # Destination-agnostic unless dnsTo names the cluster's resolvers.
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+      {{- with .Values.networkPolicy.egress.dnsTo }}
+      to:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.networkPolicy.egress.nats.to }}
+    # The NATS server behind config.nats.url.
+    - to:
+        {{- toYaml . | nindent 8 }}
+      ports:
+        - protocol: TCP
+          port: {{ $.Values.networkPolicy.egress.nats.port | int }}
+    {{- end }}
+    {{- with .Values.networkPolicy.egress.extraRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
