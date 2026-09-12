@@ -1,9 +1,9 @@
 module github.com/josh/nats-static
 
-go 1.25.0
+go 1.26.0
 
 require (
-	github.com/nats-io/nats-server/v2 v2.14.5
+	github.com/nats-io/nats-server/v2 v2.14.6
 	github.com/nats-io/nats.go v1.53.1
 	github.com/nats-io/nuid v1.0.1
 )
