@@ -107,7 +107,11 @@ pods and omit `ports` in that case.
 
 ## Container image
 
-Prebuilt images are published to `ghcr.io/josh/nats-static`.
+Build the image from the included `Dockerfile` and push it to your own registry:
+
+```sh
+docker build -t nats-static .
+```
 
 ## Writing objects
 
